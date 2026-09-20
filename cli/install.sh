@@ -17,7 +17,6 @@ set -euo pipefail
 
 REPO="${REPO:-ddelizia/dbpilot}"
 CLI_NAME="dbpilot"
-ALT_NAME="db-setup"
 VERSION="${VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-}"
 LOCAL_BIN_DIR="${LOCAL_BIN_DIR:-}"
@@ -70,7 +69,7 @@ Options:
   -d, --dir <path>         Target directory for installation (default: /usr/local/bin or ~/.local/bin)
   -r, --repo <owner/repo>  GitHub repository (default: ddelizia/dbpilot)
   --local <dir>            Install from a local binary directory (skips download)
-  -u, --uninstall          Remove dbpilot and its aliases instead of installing
+  -u, --uninstall          Remove dbpilot instead of installing
   -h, --help               Show this help message
 
 Environment Variables:
@@ -168,11 +167,9 @@ esac
 if [ "$OS_TYPE" = "windows" ]; then
   FILE_NAME="${CLI_NAME}-${OS_TYPE}-${ARCH_TYPE}.exe"
   TARGET_BIN="${CLI_NAME}.exe"
-  TARGET_ALT_BIN="${ALT_NAME}.exe"
 else
   FILE_NAME="${CLI_NAME}-${OS_TYPE}-${ARCH_TYPE}"
   TARGET_BIN="${CLI_NAME}"
-  TARGET_ALT_BIN="${ALT_NAME}"
 fi
 
 log_info "Detected platform: ${OS_TYPE}-${ARCH_TYPE} -> binary: ${FILE_NAME}"
@@ -199,9 +196,7 @@ if [ -n "$INSTALL_DIR" ]; then
     fi
   fi
 elif [ "$UNINSTALL" = true ]; then
-  if [ -e "/usr/local/bin/$TARGET_BIN" ] || [ -L "/usr/local/bin/$TARGET_BIN" ] || \
-     [ -e "/usr/local/bin/db-setup" ] || [ -L "/usr/local/bin/db-setup" ] || \
-     [ -e "/usr/local/bin/db-manager" ] || [ -L "/usr/local/bin/db-manager" ]; then
+  if [ -e "/usr/local/bin/$TARGET_BIN" ] || [ -L "/usr/local/bin/$TARGET_BIN" ]; then
     TARGET_DIR="/usr/local/bin"
   else
     TARGET_DIR="$HOME/.local/bin"
@@ -231,17 +226,11 @@ fi
 if [ "$UNINSTALL" = true ]; then
   log_info "Uninstalling ${CLI_NAME} from ${TARGET_DIR}..."
   if [ "$USE_SUDO" = true ]; then
-    sudo rm -f \
-      "$TARGET_DIR/$TARGET_BIN" \
-      "$TARGET_DIR/$TARGET_ALT_BIN" \
-      "$TARGET_DIR/db-manager"
+    sudo rm -f "$TARGET_DIR/$TARGET_BIN"
   else
-    rm -f \
-      "$TARGET_DIR/$TARGET_BIN" \
-      "$TARGET_DIR/$TARGET_ALT_BIN" \
-      "$TARGET_DIR/db-manager"
+    rm -f "$TARGET_DIR/$TARGET_BIN"
   fi
-  log_success "${CLI_NAME} and its aliases removed from ${TARGET_DIR}"
+  log_success "${CLI_NAME} removed from ${TARGET_DIR}"
   exit 0
 fi
 
@@ -256,14 +245,8 @@ trap cleanup EXIT INT TERM
 if [ -n "$LOCAL_BIN_DIR" ]; then
   SRC_FILE="${LOCAL_BIN_DIR}/${FILE_NAME}"
   if [ ! -f "$SRC_FILE" ]; then
-    # Check fallback name in local directory
-    ALT_SRC_FILE="${LOCAL_BIN_DIR}/${ALT_NAME}-${OS_TYPE}-${ARCH_TYPE}${EXT:-}"
-    if [ -f "$ALT_SRC_FILE" ]; then
-      SRC_FILE="$ALT_SRC_FILE"
-    else
-      log_error "Local binary not found at: $SRC_FILE"
-      exit 1
-    fi
+    log_error "Local binary not found at: $SRC_FILE"
+    exit 1
   fi
   log_info "Using local binary from ${SRC_FILE}..."
   cp "$SRC_FILE" "$TMP_DIR/$FILE_NAME"
@@ -282,20 +265,10 @@ else
   log_info "URL: ${BIN_URL}"
 
   DOWNLOAD_SUCCESS=false
-  if curl -fSL --progress-bar "$BIN_URL" -o "$TMP_DIR/$FILE_NAME"; then
-    DOWNLOAD_SUCCESS=true
+  if ! curl -fSL --progress-bar "$BIN_URL" -o "$TMP_DIR/$FILE_NAME"; then
+    DOWNLOAD_SUCCESS=false
   else
-    # Fallback to legacy binary name for backwards compatibility
-    if [ "$OS_TYPE" = "windows" ]; then
-      LEGACY_NAME="db-setup-${OS_TYPE}-${ARCH_TYPE}.exe"
-    else
-      LEGACY_NAME="db-setup-${OS_TYPE}-${ARCH_TYPE}"
-    fi
-    LEGACY_URL="${BASE_URL}/${LEGACY_NAME}"
-    log_info "Binary ${FILE_NAME} not found on release, trying legacy asset ${LEGACY_NAME}..."
-    if curl -fSL --progress-bar "$LEGACY_URL" -o "$TMP_DIR/$FILE_NAME"; then
-      DOWNLOAD_SUCCESS=true
-    fi
+    DOWNLOAD_SUCCESS=true
   fi
 
   if [ "$DOWNLOAD_SUCCESS" = false ]; then
@@ -308,7 +281,7 @@ else
   # Optional Checksum Verification
   if curl -fsSL "$SUM_URL" -o "$TMP_DIR/SHA256SUMS.txt" 2>/dev/null; then
     log_info "Verifying SHA-256 checksum..."
-    EXPECTED_HASH=$(grep -E "[[:space:]](${FILE_NAME}|${LEGACY_NAME:-})$" "$TMP_DIR/SHA256SUMS.txt" | awk '{print $1}' | head -n 1 || true)
+    EXPECTED_HASH=$(grep -E "[[:space:]](${FILE_NAME})$" "$TMP_DIR/SHA256SUMS.txt" | awk '{print $1}' | head -n 1 || true)
 
     if [ -n "$EXPECTED_HASH" ]; then
       ACTUAL_HASH=""
@@ -338,22 +311,13 @@ if [ "$USE_SUDO" = true ]; then
   sudo mkdir -p "$TARGET_DIR"
   sudo cp "$TMP_DIR/$FILE_NAME" "$TARGET_DIR/$TARGET_BIN"
   sudo chmod +x "$TARGET_DIR/$TARGET_BIN"
-  
-  # Also create alias symlinks (db-setup, db-manager) -> dbpilot
-  sudo ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-setup" 2>/dev/null || true
-  sudo ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-manager" 2>/dev/null || true
 else
   mkdir -p "$TARGET_DIR"
   cp "$TMP_DIR/$FILE_NAME" "$TARGET_DIR/$TARGET_BIN"
   chmod +x "$TARGET_DIR/$TARGET_BIN"
-
-  # Also create alias symlinks (db-setup, db-manager) -> dbpilot
-  ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-setup" 2>/dev/null || true
-  ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-manager" 2>/dev/null || true
 fi
 
 log_success "${CLI_NAME} installed to ${TARGET_DIR}/${TARGET_BIN}"
-log_success "Aliases configured: db-setup, db-manager -> ${TARGET_BIN}"
 
 # 8. Check PATH configuration
 IS_IN_PATH=false
