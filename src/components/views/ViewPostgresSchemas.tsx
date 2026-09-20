@@ -5,9 +5,10 @@ import { getDatabaseSchemas, DbSchemaInfo } from '../../services/postgres.js';
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const ViewPostgresSchemas: React.FC<Props> = ({ onBack }) => {
+export const ViewPostgresSchemas: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DbSchemaInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +25,19 @@ export const ViewPostgresSchemas: React.FC<Props> = ({ onBack }) => {
       });
   }, []);
 
-  useInput((input, key) => {
-    if (key.return || key.escape || input === 'b' || input === 'B') {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.return || key.escape || key.tab || input === 'b' || input === 'B') {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="green" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'green' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
+
         <Text bold color="green">
           🐘 PostgreSQL Databases & Schemas
         </Text>

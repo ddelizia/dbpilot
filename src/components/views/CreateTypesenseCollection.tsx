@@ -6,9 +6,10 @@ import { createCollectionAndAdmin, CreatedKeyResult } from '../../services/types
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const CreateTypesenseCollection: React.FC<Props> = ({ onBack }) => {
+export const CreateTypesenseCollection: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [step, setStep] = useState<number>(0);
   const [colName, setColName] = useState('');
   const [keyDesc, setKeyDesc] = useState('');
@@ -45,15 +46,18 @@ export const CreateTypesenseCollection: React.FC<Props> = ({ onBack }) => {
     setStep(3);
   };
 
-  useInput((input, key) => {
-    if (key.escape || (step === 3 && key.return)) {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.escape || (step === 3 && key.return)) {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="yellow" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'yellow' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
         <Text bold color="yellow">
           ⚡ Create New Typesense Collection & Collection Admin Key
         </Text>
@@ -66,6 +70,7 @@ export const CreateTypesenseCollection: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={colName}
                 onChange={setColName}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (colName.trim()) setStep(1);
                 }}
@@ -85,6 +90,7 @@ export const CreateTypesenseCollection: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={keyDesc}
                 onChange={setKeyDesc}
+                focus={isActive && !loading}
                 onSubmit={() => setStep(2)}
               />
             </Box>
@@ -109,6 +115,7 @@ export const CreateTypesenseCollection: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={fieldsStr}
                 onChange={setFieldsStr}
+                focus={isActive && !loading}
                 onSubmit={handleSubmit}
               />
             </Box>

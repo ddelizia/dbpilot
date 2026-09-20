@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: Compile standalone binaries
+        run: pnpm run build:bin
+
+      - name: Generate SHA-256 Checksums
+        run: |
+          cd bin
+          sha256sum db-setup-* > SHA256SUMS.txt
+          echo "Generated checksums:"
+          cat SHA256SUMS.txt
+          cd ..
+
+      - name: Determine Release Tag
+        id: release_info
+        run: |
+          git fetch --tags --force 2>/dev/null || true
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            BASE_TAG="v${VERSION}"
+            if git rev-parse "${BASE_TAG}" >/dev/null 2>&1; then
+              TAG_NAME="${BASE_TAG}.${GITHUB_RUN_NUMBER}"
+            else
+              TAG_NAME="${BASE_TAG}"
+            fi
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Target tag: ${TAG_NAME}"
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release_info.outputs.tag_name }}
+        run: |
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Release ${TAG_NAME} already exists. Updating release assets..."
+            gh release upload "${TAG_NAME}" bin/* --clobber
+          else
+            echo "Creating new release ${TAG_NAME}..."
+            gh release create "${TAG_NAME}" bin/* \
+              --title "Release ${TAG_NAME}" \
+              --generate-notes \
+              --latest
+          fi
+          echo "Successfully published release ${TAG_NAME}!"

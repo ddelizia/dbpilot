@@ -6,9 +6,10 @@ import { addUserToDatabase } from '../../services/postgres.js';
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const AddPostgresUser: React.FC<Props> = ({ onBack }) => {
+export const AddPostgresUser: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [step, setStep] = useState<number>(0);
   const [dbName, setDbName] = useState('');
   const [username, setUsername] = useState('');
@@ -26,15 +27,18 @@ export const AddPostgresUser: React.FC<Props> = ({ onBack }) => {
     setStep(3);
   };
 
-  useInput((input, key) => {
-    if (key.escape || (step === 3 && key.return)) {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.escape || (step === 3 && key.return)) {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="magenta" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'magenta' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
         <Text bold color="magenta">
           👤 Add User to PostgreSQL Database (Admin of that DB only)
         </Text>
@@ -47,6 +51,7 @@ export const AddPostgresUser: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={dbName}
                 onChange={setDbName}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (dbName.trim()) setStep(1);
                 }}
@@ -66,6 +71,7 @@ export const AddPostgresUser: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={username}
                 onChange={setUsername}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (username.trim()) setStep(2);
                 }}
@@ -85,6 +91,7 @@ export const AddPostgresUser: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={password}
                 onChange={setPassword}
+                focus={isActive && !loading}
                 mask="*"
                 onSubmit={handleSubmit}
               />

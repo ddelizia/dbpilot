@@ -1,13 +1,16 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { getAppConfig } from '../config.js';
 
 interface HeaderProps {
   currentViewTitle?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentViewTitle }) => {
+  const config = getAppConfig();
+
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column" marginBottom={0}>
       <Box
         borderStyle="double"
         borderColor="cyan"
@@ -21,9 +24,12 @@ export const Header: React.FC<HeaderProps> = ({ currentViewTitle }) => {
           </Text>
           <Text color="gray">v1.0.0</Text>
         </Box>
-        <Box marginTop={0}>
+        <Box marginTop={0} justifyContent="space-between">
           <Text color="dim">
-            Isolated Networks: <Text color="magenta">postgres_network</Text> | <Text color="yellow">typesense_network</Text>
+            🐘 PG: <Text color="blue">{config.pg.host.value}:{config.pg.port.value}</Text> ({config.pg.database.value}) | ⚡ TS: <Text color="yellow">{config.ts.protocol.value}://{config.ts.host.value}:{config.ts.port.value}</Text>
+          </Text>
+          <Text color="dim">
+            Networks: <Text color="magenta">pg_net</Text> / <Text color="yellow">ts_net</Text>
           </Text>
         </Box>
       </Box>
@@ -37,3 +43,4 @@ export const Header: React.FC<HeaderProps> = ({ currentViewTitle }) => {
     </Box>
   );
 };
+

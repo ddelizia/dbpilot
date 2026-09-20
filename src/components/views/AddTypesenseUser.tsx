@@ -7,9 +7,10 @@ import { addUserKeyToCollection, CreatedKeyResult } from '../../services/typesen
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const AddTypesenseUser: React.FC<Props> = ({ onBack }) => {
+export const AddTypesenseUser: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [step, setStep] = useState<number>(0);
   const [colName, setColName] = useState('');
   const [description, setDescription] = useState('');
@@ -40,15 +41,18 @@ export const AddTypesenseUser: React.FC<Props> = ({ onBack }) => {
     setStep(3);
   };
 
-  useInput((input, key) => {
-    if (key.escape || (step === 3 && key.return)) {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.escape || (step === 3 && key.return)) {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'cyan' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
         <Text bold color="cyan">
           🔑 Add User/Key to Typesense Collection (Admin or Read-Only)
         </Text>
@@ -61,6 +65,7 @@ export const AddTypesenseUser: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={colName}
                 onChange={setColName}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (colName.trim()) setStep(1);
                 }}
@@ -80,6 +85,7 @@ export const AddTypesenseUser: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={description}
                 onChange={setDescription}
+                focus={isActive && !loading}
                 onSubmit={() => setStep(2)}
               />
             </Box>
@@ -98,7 +104,11 @@ export const AddTypesenseUser: React.FC<Props> = ({ onBack }) => {
               <Text color="yellow">Step 3 of 3: Select Access Role:</Text>
             </Box>
             <Box marginTop={1}>
-              <SelectInput items={roleItems} onSelect={(item) => handleRoleSelect(item.value)} />
+              <SelectInput
+                items={roleItems}
+                isFocused={isActive && !loading}
+                onSelect={(item) => handleRoleSelect(item.value)}
+              />
             </Box>
           </Box>
         )}

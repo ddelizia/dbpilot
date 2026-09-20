@@ -1,30 +1,28 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
+import { getPgConfig, PgConfig } from '../config.js';
 
-dotenv.config();
-
-export interface PgConfig {
-  host?: string;
-  port?: number;
-  user?: string;
-  password?: string;
-  database?: string;
-}
+export { getPgConfig, type PgConfig };
 
 export interface DbSchemaInfo {
   database: string;
   schemas: string[];
 }
 
-export function getPgConfig(customDb?: string): PgConfig {
-  return {
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    user: process.env.POSTGRES_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || 'postgres',
-    database: customDb || process.env.POSTGRES_DB || 'postgres',
-  };
+export interface PgUserInfo {
+  username: string;
+  superuser: boolean;
 }
+
+const RESERVED_DATABASES = new Set(['template0', 'template1']);
+
+function escapeIdent(value: string): string {
+  return pg.Client.prototype.escapeIdentifier(value);
+}
+
+function escapeLit(value: string): string {
+  return pg.Client.prototype.escapeLiteral(value);
+}
+
 
 export function createPgClient(config?: PgConfig): pg.Client {
   return new pg.Client(config || getPgConfig());
@@ -101,9 +99,9 @@ export async function createDatabaseWithAdmin(
 
   try {
     // Escape identifiers safely
-    const escapedDbName = pg.Client.prototype.escapeIdentifier(dbName);
-    const escapedUser = pg.Client.prototype.escapeIdentifier(adminUser);
-    const escapedLiteralPass = pg.Client.prototype.escapeLiteral(adminPass);
+    const escapedDbName = escapeIdent(dbName);
+    const escapedUser = escapeIdent(adminUser);
+    const escapedLiteralPass = escapeLit(adminPass);
 
     // 1. Create user if not exists or set password
     const userCheck = await client.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [adminUser]);
@@ -152,9 +150,9 @@ export async function addUserToDatabase(
   await rootClient.connect();
 
   try {
-    const escapedDbName = pg.Client.prototype.escapeIdentifier(dbName);
-    const escapedUser = pg.Client.prototype.escapeIdentifier(username);
-    const escapedLiteralPass = pg.Client.prototype.escapeLiteral(password);
+    const escapedDbName = escapeIdent(dbName);
+    const escapedUser = escapeIdent(username);
+    const escapedLiteralPass = escapeLit(password);
 
     // 1. Check/create role
     const userCheck = await rootClient.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [username]);
@@ -189,5 +187,158 @@ export async function addUserToDatabase(
     return { success: false, message: error.message || 'Failed to add user to database' };
   } finally {
     await rootClient.end();
+  }
+}
+
+/**
+ * List login roles (excluding reserved pg_* roles)
+ */
+export async function listPostgresUsers(): Promise<PgUserInfo[]> {
+  const client = createPgClient();
+  await client.connect();
+
+  try {
+    const res = await client.query<{ rolname: string; rolsuper: boolean }>(
+      `SELECT rolname, rolsuper
+       FROM pg_roles
+       WHERE rolcanlogin = true
+         AND rolname NOT LIKE 'pg_%'
+       ORDER BY rolname ASC;`
+    );
+    return res.rows.map((row) => ({
+      username: row.rolname,
+      superuser: row.rolsuper,
+    }));
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Drop a database after terminating open connections.
+ * Refuses reserved templates and the currently connected database.
+ */
+export async function deleteDatabase(
+  dbName: string
+): Promise<{ success: boolean; message: string }> {
+  const trimmed = dbName.trim();
+  if (!trimmed) {
+    return { success: false, message: 'Database name is required.' };
+  }
+  if (RESERVED_DATABASES.has(trimmed)) {
+    return { success: false, message: `Cannot delete reserved database "${trimmed}".` };
+  }
+
+  const cfg = getPgConfig();
+  if (trimmed === cfg.database) {
+    return {
+      success: false,
+      message: `Cannot delete the currently connected database "${trimmed}". Re-run with --pg-db pointing at a different database.`,
+    };
+  }
+
+  const client = createPgClient();
+  await client.connect();
+
+  try {
+    const exists = await client.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [trimmed]);
+    if (exists.rows.length === 0) {
+      return { success: false, message: `Database "${trimmed}" does not exist.` };
+    }
+
+    await client.query(
+      `SELECT pg_terminate_backend(pid)
+       FROM pg_stat_activity
+       WHERE datname = $1 AND pid <> pg_backend_pid()`,
+      [trimmed]
+    );
+
+    await client.query(`DROP DATABASE ${escapeIdent(trimmed)}`);
+    return { success: true, message: `Database "${trimmed}" deleted.` };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Failed to delete database' };
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Drop a login role after reassigning/dropping owned objects in every database.
+ * Refuses the currently connected admin user and roles that own databases.
+ */
+export async function deleteUser(
+  username: string
+): Promise<{ success: boolean; message: string }> {
+  const trimmed = username.trim();
+  if (!trimmed) {
+    return { success: false, message: 'Username is required.' };
+  }
+
+  const cfg = getPgConfig();
+  if (trimmed === cfg.user) {
+    return {
+      success: false,
+      message: `Cannot delete the currently connected user "${trimmed}".`,
+    };
+  }
+  if (trimmed.startsWith('pg_')) {
+    return { success: false, message: `Cannot delete reserved role "${trimmed}".` };
+  }
+
+  const client = createPgClient();
+  await client.connect();
+
+  try {
+    const exists = await client.query(`SELECT 1 FROM pg_roles WHERE rolname = $1`, [trimmed]);
+    if (exists.rows.length === 0) {
+      return { success: false, message: `User "${trimmed}" does not exist.` };
+    }
+
+    const ownedDbs = await client.query<{ datname: string }>(
+      `SELECT d.datname
+       FROM pg_database d
+       JOIN pg_roles r ON d.datdba = r.oid
+       WHERE r.rolname = $1
+       ORDER BY d.datname`,
+      [trimmed]
+    );
+    if (ownedDbs.rows.length > 0) {
+      const names = ownedDbs.rows.map((row) => row.datname).join(', ');
+      return {
+        success: false,
+        message: `User "${trimmed}" owns database(s): ${names}. Delete or reassign those databases first.`,
+      };
+    }
+
+    const escapedUser = escapeIdent(trimmed);
+    const escapedCurrent = escapeIdent(cfg.user);
+    const dbs = await client.query<{ datname: string }>(
+      `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname`
+    );
+
+    const revokeErrors: string[] = [];
+    for (const row of dbs.rows) {
+      const dbClient = createPgClient(getPgConfig(row.datname));
+      try {
+        await dbClient.connect();
+        await dbClient.query(`REASSIGN OWNED BY ${escapedUser} TO ${escapedCurrent}`);
+        await dbClient.query(`DROP OWNED BY ${escapedUser}`);
+      } catch (err: any) {
+        revokeErrors.push(`${row.datname}: ${err.message || 'failed to drop owned objects'}`);
+      } finally {
+        await dbClient.end();
+      }
+    }
+
+    await client.query(`DROP ROLE ${escapedUser}`);
+    const suffix =
+      revokeErrors.length > 0
+        ? ` Some databases could not be fully cleaned: ${revokeErrors.join('; ')}`
+        : '';
+    return { success: true, message: `User "${trimmed}" deleted.${suffix}` };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Failed to delete user' };
+  } finally {
+    await client.end();
   }
 }

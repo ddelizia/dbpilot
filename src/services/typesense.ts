@@ -1,23 +1,8 @@
 import { Client as TypesenseClient } from 'typesense';
-import dotenv from 'dotenv';
+import { getTypesenseConfig, TypesenseConfig } from '../config.js';
 
-dotenv.config();
+export { getTypesenseConfig, type TypesenseConfig };
 
-export interface TypesenseConfig {
-  host: string;
-  port: number;
-  protocol: string;
-  apiKey: string;
-}
-
-export function getTypesenseConfig(): TypesenseConfig {
-  return {
-    host: process.env.TYPESENSE_HOST || 'localhost',
-    port: parseInt(process.env.TYPESENSE_PORT || '8108', 10),
-    protocol: process.env.TYPESENSE_PROTOCOL || 'http',
-    apiKey: process.env.TYPESENSE_API_KEY || 'xyz_typesense_admin_key_123',
-  };
-}
 
 export function createTypesenseClient(customConfig?: TypesenseConfig): TypesenseClient {
   const cfg = customConfig || getTypesenseConfig();
@@ -60,6 +45,25 @@ export interface CreatedKeyResult {
   description: string;
   actions: string[];
   collections: string[];
+}
+
+export interface KeySummary {
+  id: number;
+  description: string;
+  actions: string[];
+  collections: string[];
+  expires_at?: number;
+  value_prefix?: string;
+}
+
+export function parseSchemaFields(input: string): { name: string; type: string }[] {
+  if (!input.trim()) return [];
+  return input.split(',').map((item) => {
+    const parts = item.split(':').map((s) => s.trim());
+    const name = parts[0];
+    const type = parts[1] || 'string';
+    return { name, type };
+  });
 }
 
 /**
@@ -162,5 +166,60 @@ export async function addUserKeyToCollection(
     };
   } catch (error: any) {
     return { success: false, message: error.message || 'Failed to create collection API key' };
+  }
+}
+
+/**
+ * List API keys (secret values are never returned after creation)
+ */
+export async function getTypesenseKeys(): Promise<KeySummary[]> {
+  const client = createTypesenseClient();
+  const res = await client.keys().retrieve();
+  const keys = ((res as any).keys || []) as any[];
+
+  return keys.map((key) => ({
+    id: key.id,
+    description: key.description || '',
+    actions: key.actions || [],
+    collections: key.collections || [],
+    expires_at: key.expires_at,
+    value_prefix: key.value_prefix,
+  }));
+}
+
+/**
+ * Drop a Typesense collection and all of its documents
+ */
+export async function deleteCollection(
+  collectionName: string
+): Promise<{ success: boolean; message: string }> {
+  const trimmed = collectionName.trim();
+  if (!trimmed) {
+    return { success: false, message: 'Collection name is required.' };
+  }
+
+  const client = createTypesenseClient();
+  try {
+    await client.collections(trimmed).delete();
+    return { success: true, message: `Collection "${trimmed}" deleted.` };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Failed to delete collection' };
+  }
+}
+
+/**
+ * Revoke a Typesense API key by numeric id
+ */
+export async function deleteKey(keyId: number): Promise<{ success: boolean; message: string }> {
+  if (!Number.isInteger(keyId) || keyId <= 0) {
+    return { success: false, message: 'A valid numeric key id is required.' };
+  }
+
+  const client = createTypesenseClient();
+  try {
+    await client.keys(keyId).delete();
+    return { success: true, message: `API key #${keyId} deleted.` };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'Failed to delete API key' };
   }
 }

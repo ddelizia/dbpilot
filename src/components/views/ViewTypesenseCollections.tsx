@@ -5,9 +5,10 @@ import { getTypesenseCollections, CollectionSummary } from '../../services/types
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const ViewTypesenseCollections: React.FC<Props> = ({ onBack }) => {
+export const ViewTypesenseCollections: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +25,19 @@ export const ViewTypesenseCollections: React.FC<Props> = ({ onBack }) => {
       });
   }, []);
 
-  useInput((input, key) => {
-    if (key.return || key.escape || input === 'b' || input === 'B') {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.return || key.escape || key.tab || input === 'b' || input === 'B') {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="yellow" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'yellow' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
+
         <Text bold color="yellow">
           ⚡ Typesense Collections
         </Text>

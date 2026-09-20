@@ -6,9 +6,10 @@ import { createDatabaseWithAdmin } from '../../services/postgres.js';
 
 interface Props {
   onBack: () => void;
+  isActive?: boolean;
 }
 
-export const CreatePostgresDb: React.FC<Props> = ({ onBack }) => {
+export const CreatePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) => {
   const [step, setStep] = useState<number>(0);
   const [dbName, setDbName] = useState('');
   const [adminUser, setAdminUser] = useState('');
@@ -28,15 +29,19 @@ export const CreatePostgresDb: React.FC<Props> = ({ onBack }) => {
     setStep(3); // Result step
   };
 
-  useInput((input, key) => {
-    if (key.escape || (step === 3 && key.return)) {
-      onBack();
-    }
-  });
+  useInput(
+    (input, key) => {
+      if (key.escape || (step === 3 && key.return)) {
+        onBack();
+      }
+    },
+    { isActive }
+  );
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isActive ? 'cyan' : 'gray'} paddingX={2} paddingY={1} flexDirection="column">
+
         <Text bold color="cyan">
           ➕ Create New PostgreSQL Database & Dedicated Admin User
         </Text>
@@ -49,6 +54,7 @@ export const CreatePostgresDb: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={dbName}
                 onChange={setDbName}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (dbName.trim()) setStep(1);
                 }}
@@ -68,6 +74,7 @@ export const CreatePostgresDb: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={adminUser}
                 onChange={setAdminUser}
+                focus={isActive && !loading}
                 onSubmit={() => {
                   if (adminUser.trim()) setStep(2);
                 }}
@@ -87,6 +94,7 @@ export const CreatePostgresDb: React.FC<Props> = ({ onBack }) => {
               <TextInput
                 value={adminPass}
                 onChange={setAdminPass}
+                focus={isActive && !loading}
                 mask="*"
                 onSubmit={handleSubmit}
               />
