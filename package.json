@@ -10,7 +10,8 @@
   "scripts": {
     "start": "tsx src/cli.tsx",
     "build": "tsc && chmod +x dist/cli.js",
-    "build:cli": "tsc && chmod +x dist/cli.js",
+    "build:bundle": "esbuild src/cli.tsx --bundle --platform=node --target=node20 --format=esm --external:react-devtools-core --outfile=dist/bundle.mjs",
+    "build:bin": "pnpm run build:bundle && mkdir -p bin && bun build dist/bundle.mjs --compile --external react-devtools-core --target=bun-darwin-arm64 --outfile=bin/db-setup-darwin-arm64 && bun build dist/bundle.mjs --compile --external react-devtools-core --target=bun-darwin-x64 --outfile=bin/db-setup-darwin-x64 && bun build dist/bundle.mjs --compile --external react-devtools-core --target=bun-linux-arm64 --outfile=bin/db-setup-linux-arm64 && bun build dist/bundle.mjs --compile --external react-devtools-core --target=bun-linux-x64 --outfile=bin/db-setup-linux-x64 && bun build dist/bundle.mjs --compile --external react-devtools-core --target=bun-windows-x64 --outfile=bin/db-setup-windows-x64.exe",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -28,6 +29,8 @@
     "@types/node": "^20.14.9",
     "@types/pg": "^8.11.6",
     "@types/react": "^18.3.3",
+    "@yao-pkg/pkg": "^6.22.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.16.0",
     "typescript": "^5.5.2"
   }
