@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ currentViewTitle }) => {
       >
         <Box justifyContent="space-between">
           <Text color="cyan" bold>
-            ⚡ POSTGRES & TYPESENSE TUI MANAGER
+            ⚡ DBPILOT — POSTGRES & TYPESENSE TUI MANAGER
           </Text>
           <Text color="gray">v1.0.0</Text>
         </Box>

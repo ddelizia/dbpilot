@@ -20,6 +20,8 @@ export const DeletePostgresUser: React.FC<Props> = ({ onBack, isActive = true })
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const load = async () => {
     setStep('loading');
     setError(null);
@@ -35,7 +37,24 @@ export const DeletePostgresUser: React.FC<Props> = ({ onBack, isActive = true })
 
   useEffect(() => {
     load();
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, []);
+
+  const handleReturn = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onBack();
+    setSelectedUser('');
+    setResult(null);
+    setError(null);
+    load();
+  };
 
   const handleConfirm = async (confirmed: boolean) => {
     if (!confirmed) {
@@ -47,14 +66,20 @@ export const DeletePostgresUser: React.FC<Props> = ({ onBack, isActive = true })
     const res = await deleteUser(selectedUser);
     setResult(res);
     setStep('result');
+
+    if (res.success) {
+      timerRef.current = setTimeout(() => {
+        handleReturn();
+      }, 1500);
+    }
   };
 
   useInput(
     (input, key) => {
       if (key.escape) {
-        onBack();
-      } else if (step === 'result' && key.return) {
-        onBack();
+        handleReturn();
+      } else if (step === 'result' && (key.return || input === ' ')) {
+        handleReturn();
       }
     },
     { isActive }

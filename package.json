@@ -1,9 +1,10 @@
 {
-  "name": "db-setup-cli",
+  "name": "dbpilot",
   "version": "1.0.0",
-  "description": "TUI CLI for PostgreSQL and Typesense management using React and Ink",
+  "description": "TUI and CLI for PostgreSQL and Typesense administration using React and Ink",
   "main": "dist/cli.js",
   "bin": {
+    "dbpilot": "./dist/cli.js",
     "db-setup": "./dist/cli.js"
   },
   "type": "module",
@@ -11,7 +12,7 @@
     "start": "tsx src/cli.tsx",
     "build": "tsc && chmod +x dist/cli.js",
     "build:bundle": "esbuild src/cli.tsx --bundle --platform=node --target=node20 --format=esm --alias:react-devtools-core=./src/shims/devtools.ts --outfile=dist/bundle.mjs",
-    "build:bin": "pnpm run build:bundle && mkdir -p bin && bun build dist/bundle.mjs --compile --target=bun-darwin-arm64 --outfile=bin/db-setup-darwin-arm64 && bun build dist/bundle.mjs --compile --target=bun-darwin-x64 --outfile=bin/db-setup-darwin-x64 && bun build dist/bundle.mjs --compile --target=bun-linux-arm64 --outfile=bin/db-setup-linux-arm64 && bun build dist/bundle.mjs --compile --target=bun-linux-x64 --outfile=bin/db-setup-linux-x64 && bun build dist/bundle.mjs --compile --target=bun-windows-x64 --outfile=bin/db-setup-windows-x64.exe",
+    "build:bin": "pnpm run build:bundle && mkdir -p bin && bun build dist/bundle.mjs --compile --target=bun-darwin-arm64 --outfile=bin/dbpilot-darwin-arm64 && bun build dist/bundle.mjs --compile --target=bun-darwin-x64 --outfile=bin/dbpilot-darwin-x64 && bun build dist/bundle.mjs --compile --target=bun-linux-arm64 --outfile=bin/dbpilot-linux-arm64 && bun build dist/bundle.mjs --compile --target=bun-linux-x64 --outfile=bin/dbpilot-linux-x64 && bun build dist/bundle.mjs --compile --target=bun-windows-x64 --outfile=bin/dbpilot-windows-x64.exe",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

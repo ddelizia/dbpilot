@@ -39,6 +39,7 @@ if (commandHandled) {
 const App: React.FC = () => {
   const { exit } = useApp();
   const [currentView, setCurrentView] = useState<ViewId>('overview');
+  const [viewVersion, setViewVersion] = useState<number>(0);
   const [focusedPane, setFocusedPane] = useState<'sidebar' | 'content'>('sidebar');
 
   useInput((input, key) => {
@@ -53,6 +54,7 @@ const App: React.FC = () => {
       return;
     }
     setCurrentView(view);
+    setViewVersion((v) => v + 1);
     setFocusedPane('content');
   };
 
@@ -106,9 +108,10 @@ const App: React.FC = () => {
           onExit={exit}
         />
 
-        <Box flexDirection="column" flexGrow={1} marginLeft={1}>
+        <Box flexDirection="column" flexGrow={1} marginLeft={1} key={`${currentView}-${viewVersion}`}>
           {currentView === 'overview' && (
             <Overview
+              key={`overview-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -116,6 +119,7 @@ const App: React.FC = () => {
 
           {currentView === 'view-pg-schemas' && (
             <ViewPostgresSchemas
+              key={`view-pg-schemas-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -123,6 +127,7 @@ const App: React.FC = () => {
 
           {currentView === 'view-ts-collections' && (
             <ViewTypesenseCollections
+              key={`view-ts-collections-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -130,6 +135,7 @@ const App: React.FC = () => {
 
           {currentView === 'create-pg-db' && (
             <CreatePostgresDb
+              key={`create-pg-db-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -137,6 +143,7 @@ const App: React.FC = () => {
 
           {currentView === 'create-ts-collection' && (
             <CreateTypesenseCollection
+              key={`create-ts-collection-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -144,6 +151,7 @@ const App: React.FC = () => {
 
           {currentView === 'add-pg-user' && (
             <AddPostgresUser
+              key={`add-pg-user-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -151,6 +159,7 @@ const App: React.FC = () => {
 
           {currentView === 'add-ts-user' && (
             <AddTypesenseUser
+              key={`add-ts-user-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -158,6 +167,7 @@ const App: React.FC = () => {
 
           {currentView === 'delete-pg-db' && (
             <DeletePostgresDb
+              key={`delete-pg-db-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -165,6 +175,7 @@ const App: React.FC = () => {
 
           {currentView === 'delete-pg-user' && (
             <DeletePostgresUser
+              key={`delete-pg-user-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -172,6 +183,7 @@ const App: React.FC = () => {
 
           {currentView === 'delete-ts-collection' && (
             <DeleteTypesenseCollection
+              key={`delete-ts-collection-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />
@@ -179,6 +191,7 @@ const App: React.FC = () => {
 
           {currentView === 'delete-ts-key' && (
             <DeleteTypesenseKey
+              key={`delete-ts-key-${viewVersion}`}
               isActive={focusedPane === 'content'}
               onBack={handleBackToSidebar}
             />

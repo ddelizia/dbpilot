@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# db-setup CLI Installer
-# Repository: https://github.com/ddelizia/db-manager
+# dbpilot CLI Installer
+# Repository: https://github.com/ddelizia/dbpilot
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/ddelizia/db-manager/main/cli/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ddelizia/dbpilot/main/cli/install.sh | bash
 #
 # Custom options:
-#   curl -fsSL https://raw.githubusercontent.com/ddelizia/db-manager/main/cli/install.sh | bash -s -- --version v1.0.0
-#   VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/ddelizia/db-manager/main/cli/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ddelizia/dbpilot/main/cli/install.sh | bash -s -- --version v1.0.0
+#   curl -fsSL https://raw.githubusercontent.com/ddelizia/dbpilot/main/cli/install.sh | bash -s -- --uninstall
+#   VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/ddelizia/dbpilot/main/cli/install.sh | bash
 #   INSTALL_DIR=/usr/local/bin curl -fsSL ... | bash
 # ==============================================================================
 
 set -euo pipefail
 
-REPO="${REPO:-ddelizia/db-manager}"
-CLI_NAME="db-setup"
-ALT_NAME="db-manager"
+REPO="${REPO:-ddelizia/dbpilot}"
+CLI_NAME="dbpilot"
+ALT_NAME="db-setup"
 VERSION="${VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-}"
 LOCAL_BIN_DIR="${LOCAL_BIN_DIR:-}"
+UNINSTALL=false
 
 # Text formatting
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -58,7 +60,7 @@ log_error() {
 
 print_help() {
   cat <<EOF
-db-setup CLI Installer
+dbpilot CLI Installer
 
 Usage:
   install.sh [options]
@@ -66,8 +68,9 @@ Usage:
 Options:
   -v, --version <ver>      Version to install (e.g., 'latest' or 'v1.0.0', default: latest)
   -d, --dir <path>         Target directory for installation (default: /usr/local/bin or ~/.local/bin)
-  -r, --repo <owner/repo>  GitHub repository (default: ddelizia/db-manager)
+  -r, --repo <owner/repo>  GitHub repository (default: ddelizia/dbpilot)
   --local <dir>            Install from a local binary directory (skips download)
+  -u, --uninstall          Remove dbpilot and its aliases instead of installing
   -h, --help               Show this help message
 
 Environment Variables:
@@ -97,6 +100,10 @@ while [[ $# -gt 0 ]]; do
       LOCAL_BIN_DIR="$2"
       shift 2
       ;;
+    -u|--uninstall)
+      UNINSTALL=true
+      shift
+      ;;
     -h|--help)
       print_help
       exit 0
@@ -111,15 +118,18 @@ done
 
 echo -e "${BOLD}${CYAN}"
 cat << "BANNER"
-  ____   ____        ____       _               
- |  _ \ | __ )      / ___|  ___| |_ _   _ _ __  
- | | | ||  _ \ _____|___ \ / _ \ __| | | | '_ \ 
- | |_| || |_) |_____|___) |  __/ |_| |_| | |_) |
- |____/ |____/      |____/ \___|\__|\__,_| .__/ 
-                                         |_|    
+ ____  ____  ____  ___ _      ___  _____ 
+|  _ \| __ )|  _ \|_ _| |    / _ \|_   _|
+| | | ||  _ \| |_) || || |   | | | | | |  
+| |_| || |_) |  __/ | || |___| |_| | | |  
+|____/ |____/|_|   |___|_____|\___/  |_|  
 BANNER
 echo -e "${RESET}"
-log_info "Installing ${CLI_NAME} (${VERSION}) from ${REPO}..."
+if [ "$UNINSTALL" = true ]; then
+  log_info "Uninstalling ${CLI_NAME}..."
+else
+  log_info "Installing ${CLI_NAME} (${VERSION}) from ${REPO}..."
+fi
 
 # 1. Detect Operating System
 OS="$(uname -s)"
@@ -188,6 +198,22 @@ if [ -n "$INSTALL_DIR" ]; then
       exit 1
     fi
   fi
+elif [ "$UNINSTALL" = true ]; then
+  if [ -e "/usr/local/bin/$TARGET_BIN" ] || [ -L "/usr/local/bin/$TARGET_BIN" ] || \
+     [ -e "/usr/local/bin/db-setup" ] || [ -L "/usr/local/bin/db-setup" ] || \
+     [ -e "/usr/local/bin/db-manager" ] || [ -L "/usr/local/bin/db-manager" ]; then
+    TARGET_DIR="/usr/local/bin"
+  else
+    TARGET_DIR="$HOME/.local/bin"
+  fi
+  if ! can_write_dir "$TARGET_DIR" && [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+      USE_SUDO=true
+    else
+      log_error "Target directory '$TARGET_DIR' is not writable and sudo is unavailable."
+      exit 1
+    fi
+  fi
 else
   # Auto-select best directory
   if can_write_dir "/usr/local/bin" || [ "$(id -u)" -eq 0 ]; then
@@ -202,8 +228,25 @@ else
   fi
 fi
 
+if [ "$UNINSTALL" = true ]; then
+  log_info "Uninstalling ${CLI_NAME} from ${TARGET_DIR}..."
+  if [ "$USE_SUDO" = true ]; then
+    sudo rm -f \
+      "$TARGET_DIR/$TARGET_BIN" \
+      "$TARGET_DIR/$TARGET_ALT_BIN" \
+      "$TARGET_DIR/db-manager"
+  else
+    rm -f \
+      "$TARGET_DIR/$TARGET_BIN" \
+      "$TARGET_DIR/$TARGET_ALT_BIN" \
+      "$TARGET_DIR/db-manager"
+  fi
+  log_success "${CLI_NAME} and its aliases removed from ${TARGET_DIR}"
+  exit 0
+fi
+
 # 5. Create temporary work directory
-TMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t 'db-setup')"
+TMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t 'dbpilot')"
 cleanup() {
   rm -rf "$TMP_DIR"
 }
@@ -213,8 +256,14 @@ trap cleanup EXIT INT TERM
 if [ -n "$LOCAL_BIN_DIR" ]; then
   SRC_FILE="${LOCAL_BIN_DIR}/${FILE_NAME}"
   if [ ! -f "$SRC_FILE" ]; then
-    log_error "Local binary not found at: $SRC_FILE"
-    exit 1
+    # Check fallback name in local directory
+    ALT_SRC_FILE="${LOCAL_BIN_DIR}/${ALT_NAME}-${OS_TYPE}-${ARCH_TYPE}${EXT:-}"
+    if [ -f "$ALT_SRC_FILE" ]; then
+      SRC_FILE="$ALT_SRC_FILE"
+    else
+      log_error "Local binary not found at: $SRC_FILE"
+      exit 1
+    fi
   fi
   log_info "Using local binary from ${SRC_FILE}..."
   cp "$SRC_FILE" "$TMP_DIR/$FILE_NAME"
@@ -232,7 +281,24 @@ else
   log_info "Downloading ${FILE_NAME} from GitHub Releases..."
   log_info "URL: ${BIN_URL}"
 
-  if ! curl -fSL --progress-bar "$BIN_URL" -o "$TMP_DIR/$FILE_NAME"; then
+  DOWNLOAD_SUCCESS=false
+  if curl -fSL --progress-bar "$BIN_URL" -o "$TMP_DIR/$FILE_NAME"; then
+    DOWNLOAD_SUCCESS=true
+  else
+    # Fallback to legacy binary name for backwards compatibility
+    if [ "$OS_TYPE" = "windows" ]; then
+      LEGACY_NAME="db-setup-${OS_TYPE}-${ARCH_TYPE}.exe"
+    else
+      LEGACY_NAME="db-setup-${OS_TYPE}-${ARCH_TYPE}"
+    fi
+    LEGACY_URL="${BASE_URL}/${LEGACY_NAME}"
+    log_info "Binary ${FILE_NAME} not found on release, trying legacy asset ${LEGACY_NAME}..."
+    if curl -fSL --progress-bar "$LEGACY_URL" -o "$TMP_DIR/$FILE_NAME"; then
+      DOWNLOAD_SUCCESS=true
+    fi
+  fi
+
+  if [ "$DOWNLOAD_SUCCESS" = false ]; then
     echo ""
     log_error "Failed to download binary from ${BIN_URL}"
     echo -e "  Please verify that a release exists at: ${CYAN}https://github.com/${REPO}/releases${RESET}" >&2
@@ -242,7 +308,7 @@ else
   # Optional Checksum Verification
   if curl -fsSL "$SUM_URL" -o "$TMP_DIR/SHA256SUMS.txt" 2>/dev/null; then
     log_info "Verifying SHA-256 checksum..."
-    EXPECTED_HASH=$(grep -E "[[:space:]]${FILE_NAME}$" "$TMP_DIR/SHA256SUMS.txt" | awk '{print $1}' || true)
+    EXPECTED_HASH=$(grep -E "[[:space:]](${FILE_NAME}|${LEGACY_NAME:-})$" "$TMP_DIR/SHA256SUMS.txt" | awk '{print $1}' | head -n 1 || true)
 
     if [ -n "$EXPECTED_HASH" ]; then
       ACTUAL_HASH=""
@@ -273,25 +339,21 @@ if [ "$USE_SUDO" = true ]; then
   sudo cp "$TMP_DIR/$FILE_NAME" "$TARGET_DIR/$TARGET_BIN"
   sudo chmod +x "$TARGET_DIR/$TARGET_BIN"
   
-  # Also create alias symlink db-manager -> db-setup
-  if [ "$TARGET_BIN" = "$CLI_NAME" ]; then
-    sudo ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/$TARGET_ALT_BIN" 2>/dev/null || true
-  fi
+  # Also create alias symlinks (db-setup, db-manager) -> dbpilot
+  sudo ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-setup" 2>/dev/null || true
+  sudo ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-manager" 2>/dev/null || true
 else
   mkdir -p "$TARGET_DIR"
   cp "$TMP_DIR/$FILE_NAME" "$TARGET_DIR/$TARGET_BIN"
   chmod +x "$TARGET_DIR/$TARGET_BIN"
 
-  # Also create alias symlink db-manager -> db-setup
-  if [ "$TARGET_BIN" = "$CLI_NAME" ]; then
-    ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/$TARGET_ALT_BIN" 2>/dev/null || true
-  fi
+  # Also create alias symlinks (db-setup, db-manager) -> dbpilot
+  ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-setup" 2>/dev/null || true
+  ln -sf "$TARGET_DIR/$TARGET_BIN" "$TARGET_DIR/db-manager" 2>/dev/null || true
 fi
 
 log_success "${CLI_NAME} installed to ${TARGET_DIR}/${TARGET_BIN}"
-if [ -L "${TARGET_DIR}/${TARGET_ALT_BIN}" ] || [ -f "${TARGET_DIR}/${TARGET_ALT_BIN}" ]; then
-  log_success "Alias created: ${TARGET_DIR}/${TARGET_ALT_BIN} -> ${TARGET_BIN}"
-fi
+log_success "Aliases configured: db-setup, db-manager -> ${TARGET_BIN}"
 
 # 8. Check PATH configuration
 IS_IN_PATH=false
@@ -330,7 +392,9 @@ fi
 
 echo ""
 echo "🚀 Quick Start:"
-echo -e "  Run the interactive TUI:      ${CYAN}${CLI_NAME}${RESET} (or ${CYAN}${ALT_NAME}${RESET})"
-echo -e "  Check service status:         ${CYAN}${CLI_NAME} status${RESET}"
-echo -e "  View help and options:        ${CYAN}${CLI_NAME} --help${RESET}"
+echo -e "  Run interactive TUI:         ${CYAN}${CLI_NAME}${RESET}"
+echo -e "  Check service status:        ${CYAN}${CLI_NAME} status${RESET}"
+echo -e "  Postgres administration:     ${CYAN}${CLI_NAME} pg list${RESET}"
+echo -e "  Typesense administration:    ${CYAN}${CLI_NAME} ts list${RESET}"
+echo -e "  View help and options:       ${CYAN}${CLI_NAME} --help${RESET}"
 echo ""

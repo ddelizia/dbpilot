@@ -154,7 +154,7 @@ async function runPg(action: string | undefined, target: string | undefined, con
       return handleResult(await deleteUser(user));
     }
     default:
-      return fail(`Unknown PostgreSQL action "${action}". Run \`db-setup pg --help\`.`);
+      return fail(`Unknown PostgreSQL action "${action}". Run \`dbpilot pg --help\`.`);
   }
 }
 
@@ -251,7 +251,7 @@ async function runTs(action: string | undefined, target: string | undefined, con
       return handleResult(await deleteKey(id));
     }
     default:
-      return fail(`Unknown Typesense action "${action}". Run \`db-setup ts --help\`.`);
+      return fail(`Unknown Typesense action "${action}". Run \`dbpilot ts --help\`.`);
   }
 }
 
@@ -285,7 +285,7 @@ export async function runCliCommand(config: AppConfig): Promise<boolean> {
     if (group === 'ts' || group === 'typesense') {
       return await runTs(action?.toLowerCase(), target, config);
     }
-    return fail(`Unknown command "${groupRaw}". Run \`db-setup --help\`.`);
+    return fail(`Unknown command "${groupRaw}". Run \`dbpilot --help\`.`);
   } catch (err: any) {
     return fail(err.message || String(err));
   }

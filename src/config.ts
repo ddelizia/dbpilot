@@ -223,12 +223,12 @@ export function printHelp(positionals: string[] = []): void {
   }
 
   console.log(`
-⚡ db-setup-cli v1.0.0
-TUI + CLI for PostgreSQL and Typesense management
+⚡ dbpilot v1.0.0
+TUI + CLI for PostgreSQL and Typesense administration
 
 Usage:
-  db-setup [options]                         Launch interactive TUI
-  db-setup <command> [args] [options]        Run a non-interactive command
+  dbpilot [options]                          Launch interactive TUI
+  dbpilot <command> [args] [options]         Run a non-interactive command
 
 Commands:
   status                                     Connection health (TUI Overview)
@@ -239,7 +239,7 @@ Commands:
 PostgreSQL actions:  list, list-users, create-db, add-user, delete-db, delete-user
 Typesense actions:   list, list-keys, create-collection, add-key, delete-collection, delete-key
 
-Run \`db-setup pg --help\` or \`db-setup ts --help\` for action-specific usage.
+Run \`dbpilot pg --help\` or \`dbpilot ts --help\` for action-specific usage.
 
 Connection Options:
   -H, --pg-host <host>        PostgreSQL host (default: localhost, env: POSTGRES_HOST)
@@ -265,22 +265,22 @@ Configuration Precedence:
   3. Built-in Defaults (lowest)
 
 Examples:
-  $ db-setup
-  $ db-setup status
-  $ db-setup pg list
-  $ db-setup pg create-db shop --username shop_admin --password secret
-  $ db-setup pg delete-db shop --yes
-  $ db-setup ts list
-  $ db-setup ts delete-collection products --yes
+  $ dbpilot
+  $ dbpilot status
+  $ dbpilot pg list
+  $ dbpilot pg create-db shop --username shop_admin --password secret
+  $ dbpilot pg delete-db shop --yes
+  $ dbpilot ts list
+  $ dbpilot ts delete-collection products --yes
 `);
 }
 
 function printPgHelp(): void {
   console.log(`
-⚡ db-setup pg — PostgreSQL commands
+⚡ dbpilot pg — PostgreSQL commands
 
 Usage:
-  db-setup pg <action> [target] [options]
+  dbpilot pg <action> [target] [options]
 
 Actions:
   list
@@ -308,21 +308,21 @@ Actions:
       Protected: currently connected admin user
 
 Examples:
-  $ db-setup pg list
-  $ db-setup pg list-users
-  $ db-setup pg create-db shop --username shop_admin --password s3cret
-  $ db-setup pg add-user shop --username reporter --password s3cret
-  $ db-setup pg delete-db shop --yes
-  $ db-setup pg delete-user reporter --yes
+  $ dbpilot pg list
+  $ dbpilot pg list-users
+  $ dbpilot pg create-db shop --username shop_admin --password s3cret
+  $ dbpilot pg add-user shop --username reporter --password s3cret
+  $ dbpilot pg delete-db shop --yes
+  $ dbpilot pg delete-user reporter --yes
 `);
 }
 
 function printTsHelp(): void {
   console.log(`
-⚡ db-setup ts — Typesense commands
+⚡ dbpilot ts — Typesense commands
 
 Usage:
-  db-setup ts <action> [target] [options]
+  dbpilot ts <action> [target] [options]
 
 Actions:
   list
@@ -350,15 +350,15 @@ Actions:
       Alias flags: --id <id>
 
 Examples:
-  $ db-setup ts list
-  $ db-setup ts list-keys
-  $ db-setup ts create-collection products --fields "title:string, price:int32"
-  $ db-setup ts add-key products --description "search" --role read-only
-  $ db-setup ts delete-collection products --yes
-  $ db-setup ts delete-key 12 --yes
+  $ dbpilot ts list
+  $ dbpilot ts list-keys
+  $ dbpilot ts create-collection products --fields "title:string, price:int32"
+  $ dbpilot ts add-key products --description "search" --role read-only
+  $ dbpilot ts delete-collection products --yes
+  $ dbpilot ts delete-key 12 --yes
 `);
 }
 
 export function printVersion(): void {
-  console.log('db-setup-cli v1.0.0');
+  console.log('dbpilot v1.0.0');
 }

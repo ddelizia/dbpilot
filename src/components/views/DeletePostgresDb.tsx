@@ -18,6 +18,8 @@ export const DeletePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) =
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const load = async () => {
     setStep('loading');
     setError(null);
@@ -33,7 +35,24 @@ export const DeletePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) =
 
   useEffect(() => {
     load();
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, []);
+
+  const handleReturn = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onBack();
+    setSelectedDb('');
+    setResult(null);
+    setError(null);
+    load();
+  };
 
   const handleConfirm = async (confirmed: boolean) => {
     if (!confirmed) {
@@ -45,14 +64,20 @@ export const DeletePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) =
     const res = await deleteDatabase(selectedDb);
     setResult(res);
     setStep('result');
+
+    if (res.success) {
+      timerRef.current = setTimeout(() => {
+        handleReturn();
+      }, 1500);
+    }
   };
 
   useInput(
     (input, key) => {
       if (key.escape) {
-        onBack();
-      } else if (step === 'result' && key.return) {
-        onBack();
+        handleReturn();
+      } else if (step === 'result' && (key.return || input === ' ')) {
+        handleReturn();
       }
     },
     { isActive }
@@ -137,16 +162,28 @@ export const DeletePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) =
         {step === 'result' && (result || error) && (
           <Box flexDirection="column" marginTop={1}>
             {result?.success ? (
-              <Text color="green" bold>
-                ✅ {result.message}
-              </Text>
+              <Box flexDirection="column">
+                <Text color="green" bold>
+                  ✅ {result.message}
+                </Text>
+                <Box marginTop={1}>
+                  <Text color="gray" italic>
+                    Returning to sidebar... (Press Enter or ESC to return now)
+                  </Text>
+                </Box>
+              </Box>
             ) : (
-              <>
+              <Box flexDirection="column">
                 <Text color="red" bold>
                   ❌ Database Deletion Failed
                 </Text>
                 <Text color="red">{result?.message || error}</Text>
-              </>
+                <Box marginTop={1}>
+                  <Text color="gray" italic>
+                    Press Enter or ESC to return to sidebar.
+                  </Text>
+                </Box>
+              </Box>
             )}
           </Box>
         )}
@@ -154,7 +191,11 @@ export const DeletePostgresDb: React.FC<Props> = ({ onBack, isActive = true }) =
 
       <Box marginTop={1}>
         <Text color="gray" italic>
-          {step === 'result' ? 'Press Enter to return to main menu.' : 'Press ESC to cancel.'}
+          {step === 'result'
+            ? result?.success
+              ? 'Returning to sidebar...'
+              : 'Press Enter or ESC to return to sidebar.'
+            : 'Press ESC to return to sidebar.'}
         </Text>
       </Box>
     </Box>

@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import SelectInput from 'ink-select-input';
 import Spinner from 'ink-spinner';
+import React, { useEffect, useState } from 'react';
 import {
+  CollectionSummary,
   deleteCollection,
   getTypesenseCollections,
-  CollectionSummary,
 } from '../../services/typesense.js';
 
 interface Props {
@@ -21,6 +21,7 @@ export const DeleteTypesenseCollection: React.FC<Props> = ({ onBack, isActive = 
   const [selectedName, setSelectedName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const load = async () => {
     setStep('loading');
@@ -37,7 +38,20 @@ export const DeleteTypesenseCollection: React.FC<Props> = ({ onBack, isActive = 
 
   useEffect(() => {
     load();
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, []);
+
+  const handleReturn = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onBack();
+  };
 
   const handleConfirm = async (confirmed: boolean) => {
     if (!confirmed) {
@@ -49,14 +63,18 @@ export const DeleteTypesenseCollection: React.FC<Props> = ({ onBack, isActive = 
     const res = await deleteCollection(selectedName);
     setResult(res);
     setStep('result');
+
+    if (res.success) {
+      timerRef.current = setTimeout(handleReturn, 1500);
+    }
   };
 
   useInput(
     (input, key) => {
       if (key.escape) {
-        onBack();
+        handleReturn();
       } else if (step === 'result' && key.return) {
-        onBack();
+        handleReturn();
       }
     },
     { isActive }

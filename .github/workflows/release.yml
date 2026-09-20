@@ -50,7 +50,7 @@ jobs:
       - name: Generate SHA-256 Checksums
         run: |
           cd bin
-          sha256sum db-setup-* > SHA256SUMS.txt
+          sha256sum db* > SHA256SUMS.txt
           echo "Generated checksums:"
           cat SHA256SUMS.txt
           cd ..
